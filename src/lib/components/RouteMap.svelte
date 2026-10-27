@@ -2,7 +2,18 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import type { TelemetryPoint } from '../types/activity';
-	import { Navigation, Compass, Layers, MapPin, Dumbbell, Mountain, Satellite, Map as MapIcon } from 'lucide-svelte';
+	import { t, interpolate } from '$lib/i18n';
+	import {
+		Navigation,
+		Layers,
+		MapPin,
+		Dumbbell,
+		Mountain,
+		Satellite,
+		Map as MapIcon,
+		AlertCircle,
+		ShieldAlert
+	} from 'lucide-svelte';
 
 	export let routePoints: TelemetryPoint[] = [];
 	export let activityTitle: string = 'Percurso';
@@ -17,15 +28,14 @@
 	let activeLayerType: 'satellite' | 'terrain' | 'streets' = 'satellite';
 
 	const mapLayers = {
-		// Google Maps Satélite Real com Estradas/Rótulos Híbrido
 		satellite: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-		// Google Maps Terreno Físico com Sombreamento de Relevo e Curvas de Nível
 		terrain: 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
-		// Google Maps Ruas / Urbano
 		streets: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'
 	};
 
-	$: if (browser && mapInstance && (routePoints || activeLayerType)) {
+	$: hasGpsData = routePoints && routePoints.length > 0;
+
+	$: if (browser && mapInstance && (routePoints || activeLayerType || activityTitle || $t)) {
 		renderRoute();
 	}
 
@@ -55,16 +65,16 @@
 			mapInstance.remove();
 		}
 
-		// Centro padrão no Ibirapuera / SP
-		const defaultLat = routePoints.length > 0 ? routePoints[0].latitude : -23.5874;
-		const defaultLon = routePoints.length > 0 ? routePoints[0].longitude : -46.6576;
+		// Inicializa no centro do Brasil ou na coordenada real do primeiro ponto obtido do relógio
+		const initialLat = routePoints.length > 0 ? routePoints[0].latitude : -14.235;
+		const initialLon = routePoints.length > 0 ? routePoints[0].longitude : -51.9253;
+		const initialZoom = routePoints.length > 0 ? 16 : 4;
 
 		mapInstance = L.map(mapContainer, {
 			attributionControl: false,
 			zoomControl: true
-		}).setView([defaultLat, defaultLon], 15);
+		}).setView([initialLat, initialLon], initialZoom);
 
-		// Inicializa com camada de Satélite Real do Google Maps
 		currentBaseLayer = L.tileLayer(mapLayers[activeLayerType], {
 			maxZoom: 20,
 			subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
@@ -84,38 +94,62 @@
 		markersLayer.clearLayers();
 		polylineLayer.clearLayers();
 
-		// Caso de Musculação: treino indoor na academia
-		if (activityType?.toLowerCase() === 'musculação' || routePoints.length <= 1) {
-			const lat = routePoints.length > 0 ? routePoints[0].latitude : -23.5615;
-			const lon = routePoints.length > 0 ? routePoints[0].longitude : -46.6559;
-
-			const gymIcon = L.divIcon({
-				className: 'gym-marker',
-				html: `<div style="background-color: #f59e0b; width: 36px; height: 36px; border-radius: 50%; border: 3px solid white; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 16px rgba(245, 158, 11, 0.7); color: black; font-weight: bold; font-size: 16px;">🏋️</div>`,
-				iconSize: [36, 36],
-				iconAnchor: [18, 18]
-			});
-
-			L.marker([lat, lon], { icon: gymIcon })
-				.bindPopup(`<b>Academia / Centro de Treinamento</b><br>Atividade: Musculação<br>Deslocamento: 0.0 km (Indoor)`)
-				.addTo(markersLayer);
-
-			mapInstance.setView([lat, lon], 17);
+		// Se o dispositivo NÃO gravou pontos GPS nesta atividade
+		if (!routePoints || routePoints.length === 0) {
 			return;
 		}
 
-		if (routePoints.length < 2) return;
+		// Caso 1: O dispositivo registrou 1 ponto GPS de localização exata
+		if (routePoints.length === 1) {
+			const pt = routePoints[0];
+			const strokeColor =
+				status?.toLowerCase() === 'valid'
+					? '#10b981'
+					: status?.toLowerCase() === 'suspect'
+					? '#f59e0b'
+					: '#ef4444';
 
+			const markerIcon = L.divIcon({
+				className: 'device-location-marker',
+				html: `
+					<div style="position: relative; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+						<span style="position: absolute; width: 100%; height: 100%; border-radius: 50%; background: ${strokeColor}40; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>
+						<div style="width: 32px; height: 32px; border-radius: 50%; background: ${strokeColor}; border: 3px solid #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 14px ${strokeColor}; color: white; font-weight: bold; font-size: 14px;">
+							📍
+						</div>
+					</div>
+				`,
+				iconSize: [40, 40],
+				iconAnchor: [20, 20]
+			});
+
+			L.marker([pt.latitude, pt.longitude], { icon: markerIcon })
+				.bindPopup(`
+					<div style="font-family: monospace; font-size: 12px; line-height: 1.5;">
+						<b style="color: #38bdf8;">${$t.routeMap.popupLocation}</b><br>
+						<b>${$t.routeMap.popupActivity}</b> ${activityTitle}<br>
+						<b>Lat:</b> ${pt.latitude.toFixed(6)}<br>
+						<b>Lon:</b> ${pt.longitude.toFixed(6)}<br>
+						${pt.heartRateBpm ? `<b>${$t.routeMap.popupHeartRate}</b> ${pt.heartRateBpm} BPM<br>` : ''}
+						${pt.instantSpeedKmh > 0 ? `<b>${$t.routeMap.popupSpeed}</b> ${pt.instantSpeedKmh} km/h` : ''}
+					</div>
+				`)
+				.addTo(markersLayer);
+
+			mapInstance.flyTo([pt.latitude, pt.longitude], 17, { duration: 1.0 });
+			return;
+		}
+
+		// Caso 2: O dispositivo registrou múltiplos pontos de percurso GPS (Corrida, Ciclismo, Caminhada)
 		const latLngs = routePoints.map((p) => [p.latitude, p.longitude] as [number, number]);
 
 		const strokeColor =
 			status?.toLowerCase() === 'valid'
-				? '#10b981' // emerald
+				? '#10b981'
 				: status?.toLowerCase() === 'suspect'
-				? '#f59e0b' // amber
-				: '#ef4444'; // rose
+				? '#f59e0b'
+				: '#ef4444';
 
-		// Polilinha de alta visibilidade sobre o satélite real
 		const polyline = L.polyline(latLngs, {
 			color: strokeColor,
 			weight: 5,
@@ -134,7 +168,7 @@
 		});
 
 		L.marker([startPoint.latitude, startPoint.longitude], { icon: startIcon })
-			.bindPopup(`<b>Ponto Inicial</b><br>BPM: ${startPoint.heartRateBpm}<br>Velocidade: ${startPoint.instantSpeedKmh} km/h`)
+			.bindPopup(`<b>${$t.routeMap.popupStart}</b><br>BPM: ${startPoint.heartRateBpm}<br>${$t.routeMap.popupSpeed} ${startPoint.instantSpeedKmh} km/h`)
 			.addTo(markersLayer);
 
 		// Marcador de Fim
@@ -147,7 +181,7 @@
 		});
 
 		L.marker([endPoint.latitude, endPoint.longitude], { icon: endIcon })
-			.bindPopup(`<b>Ponto Final</b><br>BPM: ${endPoint.heartRateBpm}<br>Velocidade: ${endPoint.instantSpeedKmh} km/h`)
+			.bindPopup(`<b>${$t.routeMap.popupEnd}</b><br>BPM: ${endPoint.heartRateBpm}<br>${$t.routeMap.popupSpeed} ${endPoint.instantSpeedKmh} km/h`)
 			.addTo(markersLayer);
 
 		mapInstance.fitBounds(polyline.getBounds(), { padding: [35, 35] });
@@ -164,80 +198,103 @@
 	});
 </script>
 
-<div class="rounded-2xl bg-slate-900/80 border border-slate-800 p-4 shadow-xl flex flex-col h-[480px]">
-	<!-- Map Header with Google Map Layer Switcher -->
-	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-2 border-b border-slate-800/80">
+<div class="cyber-card rounded-2xl p-4 shadow-xl flex flex-col h-[480px]">
+	<!-- Map Header -->
+	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-2 border-b border-purple-500/15">
 		<div class="flex items-center gap-2">
 			{#if activityType?.toLowerCase() === 'musculação'}
 				<Dumbbell class="w-4 h-4 text-amber-400" />
 			{:else}
-				<Navigation class="w-4 h-4 text-cyan-400" />
+				<Navigation class="w-4 h-4 text-cyber-cyan" />
 			{/if}
-			<h3 class="text-sm font-semibold text-white truncate max-w-[240px] sm:max-w-xs">
+			<h3 class="text-sm font-bold text-white tracking-wide truncate max-w-[240px] sm:max-w-xs">
 				{activityTitle}
 			</h3>
 		</div>
 
-		<!-- Layer Selector: Satélite Real Google / Terreno / Ruas -->
-		<div class="flex items-center gap-1.5 bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs font-mono">
+		<!-- Layer Selector: Satélite Google / Terreno / Ruas -->
+		<div class="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-purple-500/20 text-xs font-mono">
 			<button
 				type="button"
 				on:click={() => switchLayer('satellite')}
-				class="flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer {activeLayerType === 'satellite' ? 'bg-cyan-600 text-white font-bold shadow' : 'text-slate-400 hover:text-white'}"
-				title="Google Maps Satélite com Estradas"
+				class="flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer {activeLayerType === 'satellite' ? 'bg-gradient-to-r from-nubank-600 to-purple-600 text-white font-bold shadow-[0_0_10px_rgba(130,10,209,0.4)]' : 'text-slate-400 hover:text-white'}"
+				title={$t.routeMap.satelliteTitle}
 			>
 				<Satellite class="w-3.5 h-3.5" />
-				<span class="hidden sm:inline">Google Satélite</span>
+				<span class="hidden sm:inline">{$t.routeMap.satellite}</span>
 			</button>
 
 			<button
 				type="button"
 				on:click={() => switchLayer('terrain')}
-				class="flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer {activeLayerType === 'terrain' ? 'bg-cyan-600 text-white font-bold shadow' : 'text-slate-400 hover:text-white'}"
-				title="Google Maps Terreno com Relevo e Curvas"
+				class="flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer {activeLayerType === 'terrain' ? 'bg-gradient-to-r from-nubank-600 to-purple-600 text-white font-bold shadow-[0_0_10px_rgba(130,10,209,0.4)]' : 'text-slate-400 hover:text-white'}"
+				title={$t.routeMap.terrainTitle}
 			>
 				<Mountain class="w-3.5 h-3.5" />
-				<span class="hidden sm:inline">Google Terreno</span>
+				<span class="hidden sm:inline">{$t.routeMap.terrain}</span>
 			</button>
 
 			<button
 				type="button"
 				on:click={() => switchLayer('streets')}
-				class="flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer {activeLayerType === 'streets' ? 'bg-cyan-600 text-white font-bold shadow' : 'text-slate-400 hover:text-white'}"
-				title="Mapa Urbano"
+				class="flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer {activeLayerType === 'streets' ? 'bg-gradient-to-r from-nubank-600 to-purple-600 text-white font-bold shadow-[0_0_10px_rgba(130,10,209,0.4)]' : 'text-slate-400 hover:text-white'}"
+				title={$t.routeMap.streetsTitle}
 			>
 				<MapIcon class="w-3.5 h-3.5" />
-				<span class="hidden sm:inline">Ruas</span>
+				<span class="hidden sm:inline">{$t.routeMap.streets}</span>
 			</button>
 		</div>
 	</div>
 
 	<!-- Map Canvas -->
-	<div class="flex-1 relative rounded-xl overflow-hidden border border-slate-800/60">
+	<div class="flex-1 relative rounded-xl overflow-hidden border border-purple-500/20">
 		<div bind:this={mapContainer} class="w-full h-full z-10"></div>
 
-		<!-- Musculação Overlay Banner -->
-		{#if activityType?.toLowerCase() === 'musculação'}
-			<div class="absolute bottom-3 left-3 right-3 z-20 p-3 rounded-xl bg-slate-950/90 border border-amber-500/40 backdrop-blur-md shadow-2xl flex items-center justify-between">
+		<!-- Overlay Real: Quando o dispositivo não possui dados de satélite/GPS -->
+		{#if !hasGpsData}
+			<div class="absolute inset-0 z-20 flex items-center justify-center p-6 bg-slate-950/75 backdrop-blur-[2px]">
+				<div class="max-w-md w-full p-5 rounded-2xl bg-slate-900/95 border border-purple-500/30 shadow-2xl text-center space-y-3">
+					<div class="w-12 h-12 rounded-full bg-purple-950/40 border border-purple-500/30 text-purple-300 flex items-center justify-center mx-auto shadow-[0_0_12px_rgba(130,10,209,0.3)]">
+						{#if activityType?.toLowerCase() === 'musculação'}
+							<Dumbbell class="w-6 h-6 text-amber-400" />
+						{:else}
+							<MapPin class="w-6 h-6 text-purple-400" />
+						{/if}
+					</div>
+
+					<div>
+						<h4 class="text-sm font-bold text-white">{$t.routeMap.noGpsTitle}</h4>
+						<p class="text-xs text-purple-200/70 mt-1 leading-relaxed">
+							{interpolate($t.routeMap.noGpsDesc, { title: activityTitle })}
+						</p>
+					</div>
+
+					<div class="pt-1 flex items-center justify-center gap-2 text-[11px] font-mono text-cyber-emerald">
+						<span class="w-2 h-2 rounded-full bg-cyber-emerald shadow-[0_0_8px_#00ffa3]"></span>
+						<span>{$t.routeMap.bioTelemetryValid}</span>
+					</div>
+				</div>
+			</div>
+		{:else}
+			<!-- Banner Inferior com Coordenadas Reais Obtidas do Dispositivo -->
+			<div class="absolute bottom-3 left-3 right-3 z-20 p-3 rounded-xl bg-slate-950/90 border border-purple-500/30 backdrop-blur-md shadow-2xl flex items-center justify-between">
 				<div class="flex items-center gap-3">
-					<div class="w-9 h-9 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
-						<Dumbbell class="w-5 h-5" />
+					<div class="w-8 h-8 rounded-lg bg-purple-950/60 border border-purple-500/30 text-purple-300 flex items-center justify-center shrink-0">
+						<MapPin class="w-4 h-4 text-cyber-cyan" />
 					</div>
 					<div>
 						<div class="text-xs font-bold text-white flex items-center gap-2">
-							<span>Sessão Indoor de Musculação</span>
-							<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">0.0 KM VÁLIDO</span>
+							<span>{$t.routeMap.deviceLocation}</span>
+							<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-cyber-emerald border border-emerald-500/30 font-bold">
+								{$t.routeMap.realData}
+							</span>
 						</div>
-						<span class="text-[11px] text-slate-400 font-mono">
-							Localização em Academia • Monitoramento de séries com biometria contínua
+						<span class="text-[11px] text-purple-200/80 font-mono">
+							{interpolate($t.routeMap.coordinates, { lat: routePoints[0].latitude.toFixed(6), lon: routePoints[0].longitude.toFixed(6) })}
+							{#if routePoints.length > 1}
+								{interpolate($t.routeMap.trackPoints, { count: routePoints.length })}
+							{/if}
 						</span>
-					</div>
-				</div>
-
-				<div class="hidden sm:flex items-center gap-3 text-right font-mono text-xs">
-					<div>
-						<span class="text-[10px] text-slate-400 block uppercase">Demanda</span>
-						<span class="text-amber-400 font-bold">Hipertrofia</span>
 					</div>
 				</div>
 			</div>

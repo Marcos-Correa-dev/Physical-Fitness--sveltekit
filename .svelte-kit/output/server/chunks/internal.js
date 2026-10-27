@@ -1,4 +1,4 @@
-import { c as create_ssr_component, b as setContext, v as validate_component, m as missing_component } from "./ssr.js";
+import { c as create_ssr_component, a as setContext, v as validate_component, m as missing_component } from "./ssr.js";
 import { a as afterUpdate } from "./ssr2.js";
 import "./server.js";
 const Root = create_ssr_component(($$result, $$props, $$bindings, slots) => {
@@ -197,7 +197,7 @@ const options = {
 		` + head + '\n	</head>\n	<body data-sveltekit-preload-data="hover">\n		<div style="display: contents">' + body + "</div>\n	</body>\n</html>\n",
     error
   },
-  version_hash: "16wok47"
+  version_hash: "1fbwk0u"
 };
 async function get_hooks() {
   let handle;

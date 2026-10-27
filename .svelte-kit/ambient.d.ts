@@ -49,15 +49,13 @@ declare module '$env/static/private' {
 	export const ComSpec: string;
 	export const DEBUG_COLORS: string;
 	export const DriverData: string;
-	export const EFC_15168_1592913036: string;
-	export const EFC_15168_2946480783: string;
-	export const EFC_15168_4126798990: string;
+	export const EFC_6204_1592913036: string;
+	export const EFC_6204_4126798990: string;
 	export const FORCE_COLOR: string;
 	export const FPS_BROWSER_APP_PROFILE_STRING: string;
 	export const FPS_BROWSER_USER_PROFILE_STRING: string;
 	export const HOMEDRIVE: string;
 	export const HOMEPATH: string;
-	export const IJ_RESTARTER_LOG: string;
 	export const LOCALAPPDATA: string;
 	export const LOGONSERVER: string;
 	export const MOCHA_COLORS: string;
@@ -90,7 +88,6 @@ declare module '$env/static/private' {
 	export const USERNAME: string;
 	export const USERPROFILE: string;
 	export const windir: string;
-	export const __COMPAT_LAYER: string;
 }
 
 /**
@@ -188,15 +185,13 @@ declare module '$env/dynamic/private' {
 		ComSpec: string;
 		DEBUG_COLORS: string;
 		DriverData: string;
-		EFC_15168_1592913036: string;
-		EFC_15168_2946480783: string;
-		EFC_15168_4126798990: string;
+		EFC_6204_1592913036: string;
+		EFC_6204_4126798990: string;
 		FORCE_COLOR: string;
 		FPS_BROWSER_APP_PROFILE_STRING: string;
 		FPS_BROWSER_USER_PROFILE_STRING: string;
 		HOMEDRIVE: string;
 		HOMEPATH: string;
-		IJ_RESTARTER_LOG: string;
 		LOCALAPPDATA: string;
 		LOGONSERVER: string;
 		MOCHA_COLORS: string;
@@ -229,7 +224,6 @@ declare module '$env/dynamic/private' {
 		USERNAME: string;
 		USERPROFILE: string;
 		windir: string;
-		__COMPAT_LAYER: string;
 		[key: `PUBLIC_${string}`]: undefined;
 		[key: `${string}`]: string | undefined;
 	}

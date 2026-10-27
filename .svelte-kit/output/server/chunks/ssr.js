@@ -9,6 +9,9 @@ function blank_object() {
 function run_all(fns) {
   fns.forEach(run);
 }
+function is_function(thing) {
+  return typeof thing === "function";
+}
 function safe_not_equal(a, b) {
   return a != a ? b == b : a !== b || a && typeof a === "object" || typeof a === "function";
 }
@@ -220,26 +223,30 @@ function create_ssr_component(fn) {
   };
 }
 function add_attribute(name, value, boolean) {
-  return "";
+  if (value == null || boolean) return "";
+  const assignment = `="${escape(value, true)}"`;
+  return ` ${name}${assignment}`;
 }
 function style_object_to_string(style_object) {
   return Object.keys(style_object).filter((key) => style_object[key] != null && style_object[key] !== "").map((key) => `${key}: ${escape_attribute_value(style_object[key])};`).join(" ");
 }
 export {
-  safe_not_equal as a,
-  setContext as b,
+  setContext as a,
+  compute_rest_props as b,
   create_ssr_component as c,
-  compute_rest_props as d,
+  spread as d,
   escape as e,
-  spread as f,
+  escape_object as f,
   getContext as g,
-  escape_object as h,
-  escape_attribute_value as i,
-  each as j,
-  add_attribute as k,
+  escape_attribute_value as h,
+  each as i,
+  add_attribute as j,
+  safe_not_equal as k,
+  is_function as l,
   missing_component as m,
   noop as n,
   onDestroy as o,
+  run_all as r,
   subscribe as s,
   validate_component as v
 };
