@@ -1,4 +1,4 @@
-import { E as ENDPOINT_METHODS, P as PAGE_METHODS, i as negotiate, m as method_not_allowed, h as handle_error_and_jsonify, j as get_status, k as is_form_content_type, l as normalize_error, o as create_replacer, b as noop$1, q as get_global_name, r as serialize_uses, t as clarify_devalue_error, u as get_node_type, v as escape_html, g as create_remote_key, p as parse_remote_arg, w as deserialize_binary_form, e as stringify, x as split_remote_key, S as SVELTE_KIT_ASSETS, y as static_error_page, z as redirect_response, A as once, B as has_prerendered_path, C as get_set_cookies, T as TRAILING_SLASH_PARAM, I as INVALIDATED_PARAM, D as handle_fatal_error, F as format_server_error } from "./chunks/utils.js";
+import { E as ENDPOINT_METHODS, P as PAGE_METHODS, i as negotiate, m as method_not_allowed, h as handle_error_and_jsonify, j as get_status, k as is_form_content_type, l as normalize_error, o as create_replacer, b as noop, q as get_global_name, r as serialize_uses, t as clarify_devalue_error, u as get_node_type, v as escape_html, g as create_remote_key, p as parse_remote_arg, w as deserialize_binary_form, e as stringify, x as split_remote_key, S as SVELTE_KIT_ASSETS, y as static_error_page, z as redirect_response, A as once, B as has_prerendered_path, C as get_set_cookies, T as TRAILING_SLASH_PARAM, I as INVALIDATED_PARAM, D as handle_fatal_error, F as format_server_error } from "./chunks/utils.js";
 import { json, text, error, isRedirect } from "@sveltejs/kit";
 import { Redirect, SvelteKitError, ActionFailure, HttpError } from "@sveltejs/kit/internal";
 import { with_request_store, merge_tracing, try_get_request_store } from "@sveltejs/kit/internal/server";
@@ -6,7 +6,7 @@ import { c as assets, b as base, a as app_dir, r as relative, o as override, d a
 import * as devalue from "devalue";
 import { d as decode_params, m as make_trackable, a as disable_search, S as SCHEME, v as validate_layout_server_exports, b as validate_layout_exports, c as validate_page_server_exports, e as validate_page_exports, n as normalize_path, r as resolve, f as decode_pathname, g as validate_server_exports } from "./chunks/exports.js";
 import { b as base64_encode, t as text_encoder, g as get_relative_path } from "./chunks/utils2.js";
-import { n as noop, a as safe_not_equal } from "./chunks/ssr.js";
+import { r as readable, w as writable } from "./chunks/index.js";
 import { p as public_env, r as read_implementation, o as options, s as set_private_env, a as set_public_env, g as get_hooks, b as set_read_implementation } from "./chunks/internal.js";
 import { parse, serialize } from "cookie";
 import * as set_cookie_parser from "set-cookie-parser";
@@ -81,53 +81,6 @@ function find_route(path, routes, matchers) {
     }
   }
   return null;
-}
-const subscriber_queue = [];
-function readable(value, start) {
-  return {
-    subscribe: writable(value, start).subscribe
-  };
-}
-function writable(value, start = noop) {
-  let stop;
-  const subscribers = /* @__PURE__ */ new Set();
-  function set(new_value) {
-    if (safe_not_equal(value, new_value)) {
-      value = new_value;
-      if (stop) {
-        const run_queue = !subscriber_queue.length;
-        for (const subscriber of subscribers) {
-          subscriber[1]();
-          subscriber_queue.push(subscriber, value);
-        }
-        if (run_queue) {
-          for (let i = 0; i < subscriber_queue.length; i += 2) {
-            subscriber_queue[i][0](subscriber_queue[i + 1]);
-          }
-          subscriber_queue.length = 0;
-        }
-      }
-    }
-  }
-  function update(fn) {
-    set(fn(value));
-  }
-  function subscribe(run, invalidate = noop) {
-    const subscriber = [run, invalidate];
-    subscribers.add(subscriber);
-    if (subscribers.size === 1) {
-      stop = start(set, update) || noop;
-    }
-    run(value);
-    return () => {
-      subscribers.delete(subscriber);
-      if (subscribers.size === 0 && stop) {
-        stop();
-        stop = null;
-      }
-    };
-  }
-  return { set, update, subscribe };
 }
 const DATA_SUFFIX = "/__data.json";
 const HTML_DATA_SUFFIX = ".html__data.json";
@@ -554,7 +507,7 @@ function create_async_iterator() {
     },
     add: (promise) => {
       const next = with_resolvers();
-      void next.promise.catch(noop$1);
+      void next.promise.catch(noop);
       deferred.push(next);
       void promise.then(
         (value) => {
@@ -887,7 +840,7 @@ async function load_data({
           route: event.route,
           fetch: create_universal_fetch(event, state, fetched, csr, resolve_opts),
           setHeaders: event.setHeaders,
-          depends: noop$1,
+          depends: noop,
           parent,
           untrack: (fn) => fn(),
           tracing: traced_event.tracing
@@ -970,7 +923,7 @@ function create_universal_fetch(event, state, fetched, csr, resolve_opts) {
               dependency.body = new Uint8Array(result);
             }
             void push_fetched(base64_encode(result), true);
-          })().catch(noop$1);
+          })().catch(noop);
           return teed_body = b;
         }
         if (key2 === "arrayBuffer") {
@@ -1047,7 +1000,7 @@ function create_universal_fetch(event, state, fetched, csr, resolve_opts) {
   };
   return (input, init2) => {
     const response = universal_fetch(input, init2);
-    response.catch(noop$1);
+    response.catch(noop);
     return response;
   };
 }
@@ -2761,8 +2714,8 @@ async function render_page(event, event_state, page, options2, manifest, state, 
         }
       });
     });
-    for (const p of server_promises) p.catch(noop$1);
-    for (const p of load_promises) p.catch(noop$1);
+    for (const p of server_promises) p.catch(noop);
+    for (const p of load_promises) p.catch(noop);
     for (let i = 0; i < nodes.data.length; i += 1) {
       const node = nodes.data[i];
       if (node) {
@@ -3292,7 +3245,7 @@ function create_fetch({ event, options: options2, manifest, state, get_cookie_he
   };
   return (input, init2) => {
     const response = server_fetch(input, init2);
-    response.catch(noop$1);
+    response.catch(noop);
     return response;
   };
 }
@@ -3307,7 +3260,7 @@ async function internal_fetch(request, options2, manifest, state) {
     if (request.signal.aborted) {
       throw new DOMException("The operation was aborted.", "AbortError");
     }
-    let remove_abort_listener = noop$1;
+    let remove_abort_listener = noop;
     const abort_promise = new Promise((_, reject) => {
       const on_abort = () => {
         reject(new DOMException("The operation was aborted.", "AbortError"));
@@ -3986,7 +3939,7 @@ class Server {
             console.error("Remote function schema validation failed:", issues);
             return { message: "Bad Request" };
           }),
-          reroute: module.reroute || noop$1,
+          reroute: module.reroute || noop,
           transport: module.transport || {}
         };
         set_app({

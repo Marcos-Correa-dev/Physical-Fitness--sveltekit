@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { ActivitySummary } from '../types/activity';
 	import ValidationBadge from './ValidationBadge.svelte';
+	import { locale, t, translateActivityType, formatDate, formatTime, interpolate } from '$lib/i18n';
 	import {
 		X,
 		ShieldAlert,
@@ -42,8 +43,11 @@
 						<ShieldCheck class="w-6 h-6" />
 					</div>
 					<div>
-						<h3 class="text-base font-bold text-white">Laudo de Auditoria da Atividade</h3>
-						<p class="text-xs text-slate-400 font-mono">ID: {activity.id.slice(0, 8)} • {activity.formattedDate} às {activity.formattedTime}</p>
+						<h3 class="text-base font-bold text-white">{$t.auditModal.title}</h3>
+						<p class="text-xs text-slate-400 font-mono">
+							{interpolate($t.auditModal.id, { id: activity.id.slice(0, 8) })} • 
+							{formatDate(activity.startTime || activity.formattedDate, $locale)} {$t.auditModal.atTime} {formatTime(activity.startTime || activity.formattedTime, $locale, false)}
+						</p>
 					</div>
 				</div>
 
@@ -64,7 +68,7 @@
 				<!-- Title and Device Banner -->
 				<div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between">
 					<div>
-						<span class="text-xs font-mono uppercase text-slate-400">{activity.activityType}</span>
+						<span class="text-xs font-mono uppercase text-slate-400">{translateActivityType(activity.activityType, $locale)}</span>
 						<h4 class="text-lg font-bold text-white">{activity.title}</h4>
 					</div>
 					<div class="flex items-center gap-2 text-xs font-mono text-cyan-400 bg-cyan-950/40 border border-cyan-800/50 px-3 py-1.5 rounded-lg">
@@ -76,22 +80,22 @@
 				<!-- Comparison Metrics Grid -->
 				<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
 					<div class="bg-slate-950/40 border border-slate-800/60 p-3 rounded-xl">
-						<span class="text-[10px] font-mono uppercase text-slate-400 block">KM Relógio</span>
+						<span class="text-[10px] font-mono uppercase text-slate-400 block">{$t.auditModal.watchKm}</span>
 						<span class="text-xl font-bold font-mono text-white">{activity.reportedDistanceKm.toFixed(2)} km</span>
 					</div>
 
 					<div class="bg-slate-950/40 border border-slate-800/60 p-3 rounded-xl">
-						<span class="text-[10px] font-mono uppercase text-slate-400 block">KM Geodésico GPS</span>
+						<span class="text-[10px] font-mono uppercase text-slate-400 block">{$t.auditModal.gpsKm}</span>
 						<span class="text-xl font-bold font-mono text-cyan-400">{activity.calculatedGpsDistanceKm.toFixed(2)} km</span>
 					</div>
 
 					<div class="bg-slate-950/40 border border-slate-800/60 p-3 rounded-xl">
-						<span class="text-[10px] font-mono uppercase text-slate-400 block">KM Aprovado</span>
+						<span class="text-[10px] font-mono uppercase text-slate-400 block">{$t.auditModal.approvedKm}</span>
 						<span class="text-xl font-bold font-mono text-emerald-400">{activity.validatedDistanceKm.toFixed(2)} km</span>
 					</div>
 
 					<div class="bg-slate-950/40 border border-slate-800/60 p-3 rounded-xl">
-						<span class="text-[10px] font-mono uppercase text-slate-400 block">Discrepância</span>
+						<span class="text-[10px] font-mono uppercase text-slate-400 block">{$t.auditModal.discrepancy}</span>
 						<span class="text-xl font-bold font-mono {activity.discrepancyPercentage > 10 ? 'text-amber-400' : 'text-slate-300'}">
 							{activity.discrepancyPercentage.toFixed(1)}%
 						</span>
@@ -105,9 +109,9 @@
 							<Heart class="w-4 h-4" />
 						</div>
 						<div>
-							<span class="text-[10px] font-mono uppercase text-slate-400 block">Frequência Cardíaca</span>
+							<span class="text-[10px] font-mono uppercase text-slate-400 block">{$t.auditModal.heartRate}</span>
 							<span class="text-xs font-mono font-semibold text-slate-200">
-								Méd: <b class="text-white">{activity.averageHeartRateBpm}</b> • Máx: <b class="text-white">{activity.maxHeartRateBpm}</b> bpm
+								{$t.auditModal.avg} <b class="text-white">{activity.averageHeartRateBpm}</b> • {$t.auditModal.max} <b class="text-white">{activity.maxHeartRateBpm}</b> bpm
 							</span>
 						</div>
 					</div>
@@ -117,7 +121,7 @@
 							<Flame class="w-4 h-4" />
 						</div>
 						<div>
-							<span class="text-[10px] font-mono uppercase text-slate-400 block">Calorias Gastas</span>
+							<span class="text-[10px] font-mono uppercase text-slate-400 block">{$t.auditModal.calories}</span>
 							<span class="text-xs font-mono font-semibold text-white">{activity.caloriesBurned} kcal</span>
 						</div>
 					</div>
@@ -127,7 +131,7 @@
 							<Gauge class="w-4 h-4" />
 						</div>
 						<div>
-							<span class="text-[10px] font-mono uppercase text-slate-400 block">Ritmo e Vel.</span>
+							<span class="text-[10px] font-mono uppercase text-slate-400 block">{$t.auditModal.paceAndSpeed}</span>
 							<span class="text-xs font-mono font-semibold text-white">{activity.formattedPace} ({activity.averageSpeedKmh} km/h)</span>
 						</div>
 					</div>
@@ -143,7 +147,7 @@
 						{:else}
 							<XCircle class="w-4 h-4 text-rose-400" />
 						{/if}
-						<span class="text-xs font-mono font-bold uppercase tracking-wider">Diagnóstico e Parecer da Análise</span>
+						<span class="text-xs font-mono font-bold uppercase tracking-wider">{$t.auditModal.diagnosticTitle}</span>
 					</div>
 					<p class="text-xs font-sans leading-relaxed">{activity.validationSummary}</p>
 				</div>
@@ -152,7 +156,7 @@
 				<div>
 					<h5 class="text-xs font-mono uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
 						<ShieldAlert class="w-4 h-4 text-slate-400" />
-						<span>Detalhamento dos Critérios de Integridade e Biometria</span>
+						<span>{$t.auditModal.criteriaTitle}</span>
 					</h5>
 
 					{#if activity.issues && activity.issues.length > 0}
@@ -160,7 +164,7 @@
 							{#each activity.issues as issue}
 								<div class="p-3 rounded-lg border text-xs {issue.severity === 'Critical' ? 'bg-rose-950/30 border-rose-900/60 text-rose-300' : issue.severity === 'Warning' ? 'bg-amber-950/30 border-amber-900/60 text-amber-300' : 'bg-slate-800/40 border-slate-700/60 text-slate-300'}">
 									<div class="flex items-center justify-between font-mono font-semibold mb-1">
-										<span>Regra: {issue.ruleName}</span>
+										<span>{interpolate($t.auditModal.rulePrefix, { rule: issue.ruleName })}</span>
 										<span class="uppercase text-[10px] px-2 py-0.5 rounded bg-slate-900 border border-slate-700">
 											{issue.severity}
 										</span>
@@ -175,7 +179,7 @@
 					{:else}
 						<div class="p-4 rounded-xl bg-slate-950/40 border border-slate-800/80 text-xs text-slate-400 flex items-center gap-2 font-mono">
 							<CheckCircle2 class="w-4 h-4 text-emerald-400" />
-							<span>Nenhuma violação identificada. Todos os testes fisiológicos e geodésicos foram cumpridos integralmente.</span>
+							<span>{$t.auditModal.noViolations}</span>
 						</div>
 					{/if}
 				</div>
@@ -190,7 +194,7 @@
 					class="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
 				>
 					<RotateCw class="w-3.5 h-3.5 {isRevalidating ? 'animate-spin text-cyan-400' : ''}" />
-					<span>{isRevalidating ? 'Revalidando...' : 'Reavaliar Atividade'}</span>
+					<span>{isRevalidating ? $t.auditModal.revalidating : $t.auditModal.revalidateBtn}</span>
 				</button>
 
 				<button
@@ -198,7 +202,7 @@
 					on:click={onClose}
 					class="px-5 py-2 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
 				>
-					Fechar
+					{$t.auditModal.closeBtn}
 				</button>
 			</div>
 		</div>
